@@ -25,6 +25,7 @@ class OkHttpSrv extends ServerTpl {
     @Resource ExecutorService exec
     protected OkHttpClient client
     final Map<String, List<Cookie>> cookieStore = new ConcurrentHashMap<>()
+    final Map<String, Set<String>> shareCookie = new ConcurrentHashMap<>()
 
 
     @EL(name = 'sys.starting')
@@ -39,10 +40,9 @@ class OkHttpSrv extends ServerTpl {
                 .cookieJar(new CookieJar() {// 共享cookie
                     @Override
                     void saveFromResponse(HttpUrl url, List<Cookie> cookies) {
-                        String k = "$url.host:$url.port".toString()
-                        def cs = cookieStore.get(k)
+                        def cs = cookieStore.get(url.host)
                         if (cs == null) {
-                            cookieStore.put(k, new LinkedList<Cookie>(cookies)) // 可更改
+                            cookieStore.put(url.host, new LinkedList<Cookie>(cookies)) // 可更改
                         } else {// 更新cookie
                             for (def it = cs.iterator(); it.hasNext(); ) {
                                 Cookie coo = it.next()
@@ -56,10 +56,19 @@ class OkHttpSrv extends ServerTpl {
                             cs.addAll(cookies)
                         }
                     }
+
                     @Override
                     List<Cookie> loadForRequest(HttpUrl url) {
-                        List<Cookie> cookies = cookieStore.get("$url.host:$url.port".toString())
-                        return cookies != null ? cookies : emptyList()
+                        List<Cookie> cookies = cookieStore.get(url.host)
+                        if (shareCookie[(url.host)]) {
+                            def rLs = new LinkedList<>((cookies?:emptyList()))
+                            shareCookie[(url.host)].each {
+                                rLs.addAll(cookieStore.get(it)?:emptyList())
+                            }
+                            return rLs
+                        } else{
+                            return cookies?:emptyList()
+                        }
                     }
                 }).build()
         exposeBean(client)

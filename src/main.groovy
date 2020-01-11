@@ -5,6 +5,7 @@ import core.module.EhcacheSrv
 import core.module.OkHttpSrv
 import core.module.SchedSrv
 import core.module.jpa.HibernateSrv
+import dao.entity.fund.Fund
 import dao.entity.fund.FundHistory
 import groovy.transform.Field
 import org.slf4j.Logger
@@ -26,7 +27,7 @@ ctx.addSource(new SchedSrv())
 //ctx.addSource(new RedisClient())
 ctx.addSource(new OkHttpSrv())
 //ctx.addSource(new Remoter())
-ctx.addSource(new HibernateSrv().entities(FundHistory))
+ctx.addSource(new HibernateSrv().entities(Fund, FundHistory))
 //ctx.addSource(new RatpackWeb().ctrls(TestCtrl, MainCtrl))
 //ctx.addSource(new EmailSrv())
 //ctx.addSource(new FileUploader())
