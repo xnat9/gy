@@ -20,7 +20,6 @@ import java.time.Duration
 @Resource @Field EP ep
 @Field final AppContext ctx = new AppContext()
 
-
 // 系统功能添加区
 ctx.addSource(new EhcacheSrv())
 ctx.addSource(new SchedSrv())
@@ -35,7 +34,6 @@ ctx.addSource(new HibernateSrv().entities(FundHistory))
 ctx.addSource(new FundSrv())
 ctx.addSource(this)
 ctx.start() // 启动系统
-
 
 
 @EL(name = 'sys.started')
