@@ -74,7 +74,7 @@ dependencies {
     // compile 'com.github.jasync-sql:jasync-mysql:1.0.12'
 
     // html 解析
-    // compile('org.jsoup:jsoup:1.12.1')
+    compile('org.jsoup:jsoup:1.12.1')
 }
 
 

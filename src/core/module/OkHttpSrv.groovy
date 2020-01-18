@@ -181,6 +181,7 @@ class OkHttpSrv extends ServerTpl {
                 params?.each {
                     if (urlStr.endsWith('?')) urlStr += (it.key + '=' + (it.value == null ? '' : it.value).toString() + '&')
                     else if (urlStr.endsWith('&')) urlStr += (it.key + '=' + (it.value == null ? '': it.value).toString() + '&')
+                    else if (urlStr.contains("?")) urlStr += ("&" + it.key + '=' + (it.value == null ? '': it.value).toString() + '&')
                     else urlStr += ('?' + it.key + '=' + (it.value == null ? '': it.value).toString() + '&')
                 }
                 builder.get()

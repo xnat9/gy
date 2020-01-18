@@ -9,6 +9,7 @@ import core.module.ServerTpl
 import core.module.jpa.BaseRepo
 import dao.entity.fund.Fund
 import dao.entity.fund.FundHistory
+import org.jsoup.Jsoup
 
 import javax.annotation.Resource
 import java.text.SimpleDateFormat
@@ -21,17 +22,40 @@ class FundSrv extends ServerTpl {
 
     @EL(name = 'sys.started')
     def start() {
+        http.shareCookie.put("api.fund.eastmoney.com", ["fundf10.eastmoney.com", "fund.eastmoney.com", "www.1234567.com.cn"])
+
 //        http.get("http://www.1234567.com.cn").execute()
 //        http.get("http://fund.eastmoney.com").execute()
 //        http.get("http://fund.eastmoney.com/data/fundranking.html").execute()
 //        http.get("http://fund.eastmoney.com/540008.html").execute()
-//        http.get("http://fundf10.eastmoney.com/jjjz_540008.html").execute()
-//        http.shareCookie.put("api.fund.eastmoney.com", ["fundf10.eastmoney.com", "fund.eastmoney.com", "www.1234567.com.cn"])
-//        println http.get("http://api.fund.eastmoney.com/f10/lsjz?jQuery18305103663512188445_1578724411862&fundCode=540008&pageIndex=1&pageSize=20&startDate=&endDate=&_=" + System.currentTimeMillis()).execute()
+
+        // Jsoup.connect("").get()
+
+//        Jsoup.parse(
+//            http.get("http://fundf10.eastmoney.com/jjjz_161024.html").execute()
+//        ).select('a').each {
+//            def href = it.attr('href')
+//            if (href.startsWith("http")) {
+//                try {
+//                    http.get(href).execute()
+//                } catch(Exception ex) {}
+//            }
+//        }
+
+        // println http.get("http://api.fund.eastmoney.com/f10/lsjz?fundCode=161024&pageIndex=1&pageSize=20&startDate=&endDate=&_=" + System.currentTimeMillis()).execute()
+        def rJo = JSON.parseObject(
+            http.get("http://fund.eastmoney.com/data/rankhandler.aspx?op=ph&dt=kf&ft=all&rs=&gs=0&sc=zzf&st=desc&qdii=&tabSubtype=,,,,,&pi=1&pn=50&dx=1&v=0.09306765410098938")
+                .param("ed", new SimpleDateFormat("yyyy-MM-dd").format(new Date()))
+                .execute()
+                .split("=")[1]
+                .split(";")[0]
+        )
+        println(rJo.getJSONArray("datas")[0].class)
+        println(rJo.getJSONArray("datas")[0])
         // initFundHistory('161024')
-        allFund()
-        println('Fund: ' + repo.count(Fund))
-        println('FundHistory: ' + repo.count(FundHistory))
+//        allFund()
+//        println('Fund: ' + repo.count(Fund))
+//        println('FundHistory: ' + repo.count(FundHistory))
     }
 
     protected allFund() {
