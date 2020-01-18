@@ -1,5 +1,6 @@
 package core.module
 
+import cn.xnatural.enet.event.EC
 import cn.xnatural.enet.event.EL
 import cn.xnatural.enet.event.EP
 import com.alibaba.fastjson.JSON
@@ -27,6 +28,8 @@ class OkHttpSrv extends ServerTpl {
     final Map<String, List<Cookie>> cookieStore = new ConcurrentHashMap<>()
     final Map<String, Set<String>> shareCookie = new ConcurrentHashMap<>()
 
+    OkHttpSrv() {super('okHttp')}
+
 
     @EL(name = 'sys.starting')
     def init() {
@@ -37,6 +40,16 @@ class OkHttpSrv extends ServerTpl {
                 .readTimeout(Duration.ofSeconds(getLong('readTimeout', 16)))
                 .writeTimeout(Duration.ofSeconds(getLong('writeTimeout', 32)))
                 .dispatcher(new Dispatcher(exec))
+                .dns({String hostname ->
+                    try {
+                        List<InetAddress> addrs = Dns.SYSTEM.lookup(hostname)
+                        if (addrs) return addrs
+                    } catch(Exception ex) {}
+                    def addr = ep.fire("dns", new EC().async(false).args(hostname)) // 自定义dns 解析
+                    if (addr instanceof InetAddress) return [addr]
+                    else if (addr instanceof List) return addr
+                    throw new UnknownHostException("[$hostname]")
+                })
                 .cookieJar(new CookieJar() {// 共享cookie
                     @Override
                     void saveFromResponse(HttpUrl url, List<Cookie> cookies) {
@@ -56,7 +69,6 @@ class OkHttpSrv extends ServerTpl {
                             cs.addAll(cookies)
                         }
                     }
-
                     @Override
                     List<Cookie> loadForRequest(HttpUrl url) {
                         List<Cookie> cookies = cookieStore.get(url.host)
@@ -66,7 +78,7 @@ class OkHttpSrv extends ServerTpl {
                                 rLs.addAll(cookieStore.get(it)?:emptyList())
                             }
                             return rLs
-                        } else{
+                        } else {
                             return cookies?:emptyList()
                         }
                     }
@@ -120,7 +132,7 @@ class OkHttpSrv extends ServerTpl {
 
         protected OkHttp(OkHttpSrv parent, String urlStr, Request.Builder builder) {
             if (builder == null) throw new NullPointerException('builder == null')
-            if (parent == null) throw new NullPointerException('parasitifer == null')
+            if (parent == null) throw new NullPointerException('parent == null')
             this.builder = builder
             this.parent = parent
             this.urlStr = urlStr
@@ -199,10 +211,28 @@ class OkHttpSrv extends ServerTpl {
             // 删除url最后的&符号
             if (urlStr.endsWith('&') && urlStr.length() > 2) urlStr = urlStr.substring(0, urlStr.length() - 1)
 
-            HttpUrl url = HttpUrl.get(urlStr)
+            // 替换集群中的appName 对应的http地址,例: http://gy/test/cus, 当gy用dns 解析不出来的时候, 就会找集群中对应gy的应用名所对应的http地址
+            URI uri = URI.create(urlStr)
+            def addrs
+            try {
+                addrs = Dns.SYSTEM.lookup(uri.host)
+            } catch (UnknownHostException ex) {}
+            if (!addrs) {
+                String hp = ep.fire("resolveHttp", uri.host)
+                if (hp) {
+                    String[] arr = hp.split(":")
+                    uri.host = arr[0]
+                    // 原始url中没有端口, 则设值
+                    if (-1 == uri.port) uri.port = Integer.valueOf(arr[1])
+                    uri.string = null
+                }
+            }
+
+            HttpUrl url = HttpUrl.get(uri)
+
             // 添加cookie
             if (cookies) {
-                def ls = cookieStore.computeIfAbsent("$url.host:$url.port", {new LinkedList<Cookie>()})
+                def ls = cookieStore.computeIfAbsent(url.host(), {new LinkedList<Cookie>()})
                 cookies.each { ls.add(Cookie.parse(url, "$it.key=$it.value")) }
             }
 
@@ -222,7 +252,7 @@ class OkHttpSrv extends ServerTpl {
                 null
             } else { // 同步请求
                 def resp = call.execute()
-                if (200 != resp.code()) throw new RuntimeException("Http error code: ${resp.code()}, url: $urlStr, resp: ${resp.body().string()}")
+                if (200 != resp.code()) throw new RuntimeException("Http error. code: ${resp.code()}, url: $urlStr, resp: ${resp.body().string()}")
                 return resp.body().string()
             }
         }
