@@ -63,6 +63,8 @@ dependencies {
         //exclude group: 'com.fasterxml.jackson.dataformat'
     }
 
+    implementation('org.apache.commons:commons-lang3:3.10')
+
 //    compile('org.webjars.npm:swagger-ui-dist:3.27.0')
 //    compile('org.webjars:webjars-locator-core:0.40')
 //    compile('org.webjars:jquery:3.1.1')
@@ -80,6 +82,9 @@ dependencies {
 
     // 异步sql
     // compile 'com.github.jasync-sql:jasync-mysql:1.0.12'
+
+    // html 解析
+    compile('org.jsoup:jsoup:1.12.1')
 
     // compile 'org.t-io:tio-core:3.6.0.v20200315-RELEASE'
     // compile 'org.t-io:tio-http-server:3.6.0.v20200315-RELEASE'
@@ -125,7 +130,7 @@ task deps(type: Copy) {
 
 
 task tgz(dependsOn: ['deps'], type: Tar) {
-    new File("${buildDir}/gy.tgz").deleteOnExit()
+    new File("${buildDir}/my.tgz").deleteOnExit()
 
     into("bin") {from("bin")}
     into("conf") {from "conf"}
@@ -135,14 +140,14 @@ task tgz(dependsOn: ['deps'], type: Tar) {
     from "start.bat"
     from("start.sh")
 
-    archiveFileName = "gy.tgz"
+    archiveFileName = "my.tgz"
     compression(Compression.GZIP)
     destinationDirectory = file("${buildDir}")
 }
 
 
 task tarDir(dependsOn: ['deps'], type: Copy) {
-    new File("${buildDir}/gy").deleteDir()
+    new File("${buildDir}/my").deleteDir()
 
     into("bin") {from("bin")}
     into("conf") {from "conf"}
@@ -152,5 +157,5 @@ task tarDir(dependsOn: ['deps'], type: Copy) {
     from "start.bat"
     from("start.sh")
 
-    into "${buildDir}/gy"
+    into "${buildDir}/my"
 }

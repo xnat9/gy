@@ -21,7 +21,7 @@ class SchedSrv extends ServerTpl {
 
     @EL(name = "sys.starting", async = true)
     def start() {
-        if (scheduler) throw new RuntimeException("$name is already running")
+        if (scheduler) throw new Exception("$name is already running")
         if (ep == null) {ep = new EP(exec); ep.addListenerSource(this)}
 
         StdSchedulerFactory f = new StdSchedulerFactory()
@@ -100,7 +100,7 @@ class SchedSrv extends ServerTpl {
      */
     @EL(name = "sched.time")
     def time(Date time, Runnable fn) {
-        if (scheduler) throw new RuntimeException(getName() + " is not running")
+        if (scheduler) throw new RuntimeException("$name is not running")
         if (!time || !fn) throw new IllegalArgumentException("'time' and 'fn' must not be null")
         JobDataMap data = new JobDataMap()
         data.put(KEY_FN, fn)

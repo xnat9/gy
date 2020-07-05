@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fund</title>
+    <link rel="stylesheet" href="../css/lib/iview.4.0.0.css" type="text/css">
+    <script src="../js/lib/jquery-3.4.1.js"></script>
+    <script src="../js/lib/vue.js"></script>
+    <script src="../js/lib/httpVueLoader.js"></script>
+    <script src="../js/lib/iview.min.4.0.0.js"></script>
+    <script src='../js/lib/moment.min.js' async></script>
+    <script src="../js/lib/echarts.min.js"></script>
+</head>
+<body>
+
+<div id="app">
+    <div>
+        <i-form @submit.native.prevent>
+            <form-item>
+                <i-input type="textarea" v-model="cusScript" placeholder="脚本代码" :rows="10" style="width: 100%"/>
+            </form-item>
+            <i-button @click="execScript()">执行</i-button>
+        </i-form>
+
+        <i-form @submit.native.prevent inline>
+            <form-item>
+                <i-input v-model="addCode" placeholder="基金代码" style="width: 120px"/>
+            </form-item>
+            <form-item>
+                <i-select v-model="select_update_type" placeholder="选择类型">
+                    <i-option v-for="opt in types.filter(v => v != '所有类型')" :value="opt" :key="opt">{{opt}}</i-option>
+                </i-select>
+            </form-item>
+            <i-button @click="updateFund(addCode, select_update_type)">更新</i-button>
+        </i-form>
+    </div>
+
+    <!-- 基金列表 -->
+    <div id="div_fund" style="margin-top: 20px" >
+        <div>
+            <i-form @submit.native.prevent inline>
+                <form-item>
+                    <i-input v-model="query_code" placeholder="基金代码" @on-enter="getFunds(1)" style="width: 100px"/>
+                </form-item>
+                <form-item>
+                    <i-input v-model="query_name" placeholder="基金名字" @on-enter="getFunds(1)" style="width: 150px"/>
+                </form-item>
+                <form-item>
+                    <i-select v-model="select_available" placeholder="是否可用">
+                        <i-option value="">所有</i-option>
+                        <i-option value="true">是</i-option>
+                        <i-option value="false">否</i-option>
+                    </i-select>
+                </form-item>
+                <form-item>
+                    <i-select v-model="select_type" multiple placeholder="选择类型">
+                        <i-option v-for="opt in types" :value="opt" :key="opt">{{opt}}</i-option>
+                    </i-select>
+                </form-item>
+                <form-item>
+                    <i-select v-model="select_desc" multiple filterable placeholder="降序排列">
+                        <i-option value="code">代码</i-option>
+<!--                        <i-option value="name">名字</i-option>-->
+                        <i-option value="start">成立日</i-option>
+                        <i-option value="total">规模</i-option>
+                        <i-option value="newestUnitPrice">最新价</i-option>
+                        <i-option value="maxUnitPrice">最高价</i-option>
+                        <i-option value="minUnitPrice">最低价</i-option>
+                        <i-option value="lastMonthAvg">最近一月平均价</i-option>
+                        <i-option value="lowestPurchase">起购价</i-option>
+                        <i-option value="spread_newest_min">差价(最新-最低)</i-option>
+                        <i-option value="spread_max_newest">差价(最高-最新)</i-option>
+                        <i-option value="continuousDownCount">连续降次数</i-option>
+                        <i-option value="continuousUpCount">连续升次数</i-option>
+                        <i-option value="downCountOfTen">最近10天下降次数</i-option>
+                        <i-option value="downCountOf30day">最近30天下降次数</i-option>
+                    </i-select>
+                </form-item>
+                <form-item>
+                    <i-select v-model="select_asc" multiple filterable placeholder="升序排列">
+                        <i-option value="code">代码</i-option>
+<!--                        <i-option value="name">名字</i-option>-->
+                        <i-option value="start">成立日</i-option>
+                        <i-option value="total">规模</i-option>
+                        <i-option value="newestUnitPrice">最新价</i-option>
+                        <i-option value="maxUnitPrice">最高价</i-option>
+                        <i-option value="minUnitPrice">最低价</i-option>
+                        <i-option value="lastMonthAvg">最近一月平均价</i-option>
+                        <i-option value="lowestPurchase">起购价</i-option>
+                        <i-option value="spread_newest_min">差价(最新-最低)</i-option>
+                        <i-option value="spread_max_newest">差价(最高-最新)</i-option>
+                        <i-option value="continuousDownCount">连续降的次数</i-option>
+                        <i-option value="continuousUpCount">连续升的次数</i-option>
+                        <i-option value="downCountOfTen">最近10天下降次数</i-option>
+                        <i-option value="downCountOf30day">最近30天下降次数</i-option>
+                    </i-select>
+                </form-item>
+                <form-item>
+                    <i-select v-model="descFirst" placeholder="desc优先">
+                        <i-option value="true">是</i-option>
+                        <i-option value="false">否</i-option>
+                    </i-select>
+                </form-item>
+                <form-item><i-button @click="getFunds(1)">搜索</i-button></form-item>
+            </i-form>
+        </div>
+        <table id="tb_fund" border="1">
+            <thead>
+            <tr>
+                <th>代码</th>
+                <th>名字</th>
+<!--                <th>可用</th>-->
+                <th>类型</th>
+                <th>成立日</th>
+                <th>规模(亿元)</th>
+                <th>最新价</th>
+                <th>最高价</th>
+                <th>最低价</th>
+<!--                <th>接近最历史低</th>-->
+                <th>最近一月平均价</th>
+                <th>起购价(元)</th>
+                <th>差价(最新-最低)</th>
+                <th>差价(最高-最新)</th>
+                <th>连续升降次数</th>
+                <th>最近10天下降次数</th>
+                <th>最近30天下降次数</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <template v-for="item in funds.list">
+                <tr :data-code="item.code" :key="item.code">
+                    <td :title="item.comment">
+                        <span v-if="item.available == false" style="text-decoration:line-through">{{item.code}}</span>
+                        <span v-else>{{item.code}}</span>
+                    </td>
+                    <td>{{item.name}}</td>
+<!--                    <td>{{item.available == false ? '否' : '是'}}</td>-->
+                    <td>{{item.type}}</td>
+                    <td>{{item.start}}</td>
+                    <td>{{item.total}}</td>
+                    <td>
+                        <span v-if="item.up === true" style="color: red">{{item.newestUnitPrice}}</span>
+                        <span v-else-if="item.up === false" style="color: green">{{item.newestUnitPrice}}</span>
+                        <span v-else>{{item.newestUnitPrice}}</span>
+                    </td>
+                    <td>{{item.maxUnitPrice}}</td>
+                    <td>{{item.minUnitPrice}}</td>
+<!--                    <td>{{item.historyLowest == true ? '是' : '否'}}</td>-->
+                    <td>{{item.lastMonthAvg}}</td>
+                    <td>{{item.lowestPurchase}}</td>
+                    <td>{{item.spread_newest_min}}</td>
+                    <td>{{item.spread_max_newest}}</td>
+                    <td>
+                        <span v-if="item.continuousUpCount > 0" style="color: red">{{item.continuousUpCount}}</span>
+                        <span v-else-if="item.continuousDownCount > 0" style="color: green">{{item.continuousDownCount}}</span>
+                        <span v-else></span>
+                    </td>
+<!--                    <td>{{item.continuousUpCount}}</td>-->
+                    <td>{{item.downCountOfTen}}</td>
+                    <td>{{item.downCountOf30day}}</td>
+                    <td>
+                        <a href="javascript:void(0)" style="text-decoration:none;" @click="showHistory(item.code), renderHistoryEChart(item.code)">历史</a>
+                        <a href="javascript:void(0)" style="text-decoration:none;" @click="updateFund(item.code)">更新</a>
+                    </td>
+                </tr>
+            </template>
+            </tbody>
+
+            <tfoot>
+            <tr>
+                <td colspan="20">
+                    <Page :total="funds.totalRow" :page-size="funds.pageSize" :current="funds.page" show-total show-elevator @on-change="getFunds"></Page>
+                </td>
+            </tr>
+            </tfoot>
+        </table>
+    </div >
+
+    <!-- 历史折线图 -->
+    <div id="div_fundHistory_echart" style="margin-top: 20px">
+        <i-form @submit.native.prevent inline>
+            <form-item>
+                <Date-Picker v-model="startTime" type="date" placeholder="开始时间" style="width: 120px" @on-change="renderHistoryEChart(showHistoryCode)"></Date-Picker>
+                <Date-Picker v-model="endTime" type="date" placeholder="结束时间" style="width: 120px" @on-change="renderHistoryEChart(showHistoryCode)"></Date-Picker>
+            </form-item>
+        </i-form>
+        <div id="div_fundHistory_main" style="width:100%; height:500px;"></div>
+    </div>
+
+    <!-- 历史表格 -->
+    <div id="div_fundHistory" v-if="histories && histories.list" style="margin-top: 20px">
+        <span>历史详情:</span>
+        <table id="tb_fundHistory" border="1">
+            <thead>
+            <tr>
+                <th>代码</th>
+                <th>日期</th>
+                <th>单价</th>
+            </tr>
+            </thead>
+            <tbody>
+            <template v-for="item in histories.list">
+                <tr :data-code="item.code" :key="item.id">
+                    <td>{{item.code}}</td>
+                    <td>{{item.date}}</td>
+                    <td>{{item.unitPrice}}</td>
+                </tr>
+            </template>
+            </tbody>
+
+            <tfoot>
+            <tr>
+                <td colspan="3">total: {{histories.totalRow}}</td>
+            </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<script>
+    let app = new Vue({
+        el: '#app',
+        data: {
+            fireMethod: '',
+            addCode: '', select_update_type: '', cusScript: '',
+            funds: {}, query_code: '', query_name: '', types: [], select_available: 'true', select_type: '股票指数', select_desc: '', select_asc: '', select_historyLowest: '', descFirst: 'true',
+            histories: {},
+            historyChart: null, showHistoryCode: '', startTime: new Date(new Date().getTime() - (1000 * 60 * 60 * 24 * 30)), endTime: null,
+        },
+        mounted: function () {
+            this.getTypes();
+            this.getFunds(1)
+        },
+        watch: {
+            select_available: function(v) {this.getFunds(1)},
+            select_type: function (v) {this.getFunds(1)},
+            select_desc: function (v) {this.getFunds(1)},
+            select_asc: function (v) {this.getFunds(1)},
+            // select_historyLowest: function(v) {
+            //     this.getFunds(1)
+            // },
+            descFirst: function(v) {this.getFunds(1)},
+            fireMethod: function(v) {
+                if ('getFunds' == v) this.getFunds(this.funds.page)
+            },
+            funds: function (v) {
+                if (this.funds.totalRow == 0) {
+                    this.histories = {};
+                } else {
+                    let c = this.funds.list[0].code;
+                    this.showHistory(c, 1);
+                    this.renderHistoryEChart(c)
+                }
+            }
+        },
+        methods: {
+            execScript: function() {
+                let _this = this;
+                $.ajax({
+                    url: 'cusScript',
+                    data: _this.cusScript,
+                    type: 'post',
+                    success: function (res) {
+                        if ('00' == res['code']) {
+                            app.$Notice.success({title: '成功提示', desc: res.desc, duration: 5})
+                        } else {
+                            app.$Notice.error({title: '错误提示', desc: res.desc, duration: 7})
+                        }
+                    }
+                })
+            },
+            getFundByCode: function(code) {
+                let ls = this.funds.list;
+                for (let i = 0; i < ls.length; i++) {
+                    if (ls[i].code == code) return ls[i];
+                }
+            },
+            getFunds: function (page) {
+                let _this = this;
+                $.ajax({
+                    url: 'list?page=' + (page || 1) + '&' + (_this.select_type != '所有类型' ? 'type='+_this.select_type+'&' : '') +
+                        (_this.query_code ? 'code='+_this.query_code+'&' : '') + (_this.query_name ? 'name='+_this.query_name+'&' : '') +
+                        (_this.select_desc ? 'desc='+_this.select_desc+'&' : '') + (_this.select_asc ? 'asc='+_this.select_asc+'&' : '') +
+                        (_this.select_historyLowest ? 'historyLowest='+_this.select_historyLowest+'&' : ''),
+                    data: {
+                        descFirst: _this.descFirst, available: _this.select_available
+                    },
+                    success: function (res) {
+                        if ('00' == res['code']) {
+                            _this.funds = res.data
+                        } else {
+                            app.$Notice.error({title: '错误提示', desc: res.desc, duration: 7})
+                        }
+                    }
+                })
+            },
+            getTypes: function() {
+                const _this = this
+                $.ajax({
+                    url:'types',
+                    success: function (res) {
+                        if ('00' == res['code']) {
+                            let hasEmpty = false;
+                            res.data.forEach(function(v) {
+                                if (v) _this.types.push(v);
+                                else if (!hasEmpty) {
+                                    _this.types.push('--');
+                                    hasEmpty = true
+                                }
+                            })
+                        } else {
+                            app.$Notice.error({title: '错误提示', desc: res.desc, duration: 7})
+                        }
+                    }
+                })
+            },
+
+            updateFund: function(code, type) {
+                let _this = this;
+                $.ajax({
+                    url: 'updateFund',
+                    type: 'post',
+                    data: {code: code, type: type},
+                    success: function (res) {
+                        if ('00' == res['code']) {
+                            _this.addCode = '';
+                            app.$Notice.success({title: '成功提示', desc: (res.data ? (res.data.name + '(' + res.data.code  +')更新成功') : res.desc), duration: 10});
+                            _this.getFunds(_this.funds.page)
+                        } else {
+                            app.$Notice.error({title: '错误提示', desc: res.desc, duration: 7})
+                        }
+                    }
+                });
+            },
+            renderHistoryEChart: function(code) {
+                if (!this.historyChart) {
+                    this.historyChart = echarts.init(document.getElementById('div_fundHistory_main'))
+                }
+                this.showHistoryCode = code;
+                let _this = this;
+                let opt = {
+                    title: {
+                        text: _this.getFundByCode(code).name + '('+ code +')历史折线图'
+                    },
+                    tooltip: {},
+                    legend: {
+                        data:['销量']
+                    },
+                    xAxis: {
+                        data: [] // 日期数组
+                    },
+                    yAxis: {},
+                    series: [{
+                        type: 'line',
+                        data: [] // 值列表
+                    }]
+                };
+                $.ajax({
+                    url: 'histories?code=' + code + '&page=1&pageSize=10000',
+                    data: {
+                        startTime: _this.startTime ? _this.startTime.getTime() : null,
+                        endTime: _this.endTime ? _this.endTime.getTime() : null
+                    },
+                    success: function (res) {
+                        if ('00' == res['code']) {
+                            res.data.list.reverse().forEach(function(v, i) {
+                                opt.xAxis.data.push(v.date);
+                                opt.series[0].data.push(v.unitPrice)
+                            });
+                            _this.historyChart.setOption(opt);
+                        } else {
+                            app.$Notice.error({title: '错误提示', desc: res.desc, duration: 7})
+                        }
+                    }
+                });
+            },
+            showHistory: function (code, page) {
+                if (!code) {
+                    app.$Notice.warning({title: '错误提示', desc: 'showHistory 参数code无效', duration: 7});
+                    return
+                }
+                let _this = this;
+                $.ajax({
+                    url: 'histories?code=' + code + '&page=' + (page || 1),
+                    success: function (res) {
+                        if ('00' == res['code']) {
+                            _this.histories = res.data
+                        } else {
+                            app.$Notice.error({title: '错误提示', desc: res.desc, duration: 7})
+                        }
+                    }
+                })
+            },
+        }
+    });
+
+    // web socket
+    let ws = null;
+    function createWs() {
+        if (ws && (ws.readyState == 1 || ws.readyState == 2)) {
+            console.log('Websocket连接可用不用重创建. state: ' + ws.readyState);
+            return;
+        }
+        console.log('create websocket ...');
+        try {
+            let protocol = "ws://";
+            if (window.location.protocol.startsWith("https")) protocol = "wss://";
+            ws = new WebSocket(protocol + window.location.host + "/fund/ws");
+        } catch (e) {
+            console.log('创建websocket错误');
+            setTimeout(function () {
+                createWs()
+            }, (1000 * 60 * 2)); // 每两分钟重试
+            return
+        }
+        ws.onclose = function () {
+            setTimeout(function () {
+                createWs()
+            }, (1000 * 60 * 2)); // 每两分钟重试
+        };
+        ws.onmessage = function (e) {
+            let jo = toJSON(e.data);
+            if (jo) {
+                // 消息类型
+                if (jo['type'] == 'refreshFunds') {
+                    app.$data.fireMethod = 'getFunds'
+                }
+            } else {
+                app.$Notice.info({title: '后台提示', desc: e.data, duration: 7})
+            }
+        };
+        ws.onopen = function() {
+            console.log('websocket onopen');
+            ws.send('成功连接...')
+        };
+    }
+    createWs();
+
+    // jq ajax 全局设置
+    $.ajaxSetup({
+        error: function (xhr, textStatus, ex) {
+            app.$Notice.error({title: 'ajax错误提示', desc: (xhr.status + ": " + ex + ", resp: " + xhr.responseText), duration: 7})
+        },
+        complete: function (xhr, textStatus) {
+            // JSON.parse(xhr.responseText)
+        }
+    });
+
+    function toJSON(str) {
+        if (typeof str == 'string') {
+            try {
+                let obj = JSON.parse(str);
+                return obj
+            } catch(e) {}
+        }
+        return null
+    }
+</script>
+</body>
+</html>
