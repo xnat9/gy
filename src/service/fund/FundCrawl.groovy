@@ -37,7 +37,7 @@ class FundCrawl extends ServerTpl {
             if (p.page >= p.totalPage) break
         }
         log.info("加载忽略更新的代码个数: {}", ignoreCode.size())
-        updateFunds()
+        // updateFunds()
     }
 
 

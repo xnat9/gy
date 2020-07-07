@@ -65,7 +65,6 @@ class FundAnalyzer extends ServerTpl {
         if (fund.type && (fund.type.contains('货币') || fund.type.contains('债'))) return
 
         if (fund.newestUnitPrice && fund.minUnitPrice && fund.newestUnitPrice - fund.minUnitPrice < 0.05D) {
-            fund.historyLowest = true
             repo.saveOrUpdate(fund)
             String msg = "${fund.name + '('+ code + ')'} $fund.type 接近最历史低价"
             fundSrv.ddMsg(msg)
@@ -82,7 +81,7 @@ class FundAnalyzer extends ServerTpl {
         if (fund.newestUnitPrice != null && fund.minUnitPrice != null) {
             fund.spread_newest_min = new BigDecimal(fund.newestUnitPrice - fund.minUnitPrice).setScale(4, RoundingMode.UP).doubleValue()
         }
-        if (fund.spread_newest_min == 0 && !f && (fund.type in ['股票指数', '股票型', '混合型'] as Set)) {
+        if (fund.spread_newest_min == 0 && !f && (fund.type in ['股票指数', '股票型', '混合型'] as Set) && Calendar.getInstance().get(Calendar.HOUR_OF_DAY) > 13) {
             String msg = "${fund.name + '('+ code + ')'} $fund.type 降到历史最低价"
             fundSrv.ddMsg(msg)
             ep.fire('wsMsg', msg)
@@ -150,8 +149,7 @@ class FundAnalyzer extends ServerTpl {
         }
 
         if (fund.continuousDownCount >= 3 && (fund.type in ['股票指数', '股票型', '混合型'] as Set) && !fund.up) {
-            def cal = Calendar.getInstance()
-            if (cal.get(Calendar.HOUR_OF_DAY) > 13) {
+            if (Calendar.getInstance().get(Calendar.HOUR_OF_DAY) > 13) {
                 fundSrv.ddMsg("连续下降 $fund.continuousDownCount 次, $fund.name($fund.code)")
             }
             // TODO 连续3次 下降, 降>0.3
