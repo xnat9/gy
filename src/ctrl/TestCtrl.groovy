@@ -6,6 +6,8 @@ import core.Page
 import core.Utils
 import core.module.OkHttpSrv
 import core.module.SchedSrv
+import core.module.aio.AioClient
+import core.module.aio.AioServer
 import core.module.jpa.BaseRepo
 import ctrl.common.FileData
 import dao.entity.Test
@@ -177,7 +179,7 @@ class TestCtrl extends CtrlTpl {
     // 依次从外往里执行多个handler, 例: pre/sub
     void pre(Chain chain) {
         chain.prefix('pre') {ch ->
-            ch.with {
+            ch.with(true) {
                 all({ctx ->
                     println('xxxxxxxxxxxxxxxx')
                     ctx.next()
@@ -208,7 +210,7 @@ class TestCtrl extends CtrlTpl {
         chain.get('async') {ctx ->
             get(ctx) {params, cb ->
                 Thread.sleep(3000)
-                cb.accept(ok('date', new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date())))
+                cb.accept(ok().attr('date', new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date())))
             }
         }
     }
@@ -257,12 +259,23 @@ class TestCtrl extends CtrlTpl {
     }
 
 
+
+    // 测试自定义返回
+    void aio(Chain chain) {
+        chain.get('aio') {ctx ->
+            get(ctx) {params, cb ->
+                bean(AioClient).send('localhost', bean(AioServer).port, "send " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()))
+                cb.accept(ok())
+            }
+        }
+    }
+
     // 测试自定义返回
     void cus(Chain chain) {
         chain.get('cus') {ctx ->
             get(ctx) {params, cb ->
-                def t = repo.saveOrUpdate(new Test(name: "xxx" + System.currentTimeMillis()))
-                cb.accept(t.id)
+                // asc.write(ByteBuffer.wrap(("write " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date())).getBytes("utf-8")))
+                cb.accept(ok())
             }
         }
     }
