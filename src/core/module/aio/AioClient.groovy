@@ -133,16 +133,17 @@ class AioClient extends ServerTpl {
     protected AioSession create(String host, Integer port) {
         String key = "$host:$port"
         // 创建连接
-        def sc = AsynchronousSocketChannel.open(group)
+        final def sc = AsynchronousSocketChannel.open(group)
         sc.setOption(StandardSocketOptions.TCP_NODELAY, true)
         sc.setOption(StandardSocketOptions.SO_REUSEADDR, true)
         sc.setOption(StandardSocketOptions.SO_KEEPALIVE, true)
         // asc.bind(new InetSocketAddress('localhost', bean(AioServer).port))
         try {
-            sc.connect(new InetSocketAddress(host, port)).get(3000, TimeUnit.SECONDS)
-            log.info("New TCP(Aio) connection to " + key)
+            sc.connect(new InetSocketAddress(host, port)).get(3, TimeUnit.SECONDS)
+            log.info("New TCP(AIO) connection to " + key)
         } catch(ex) {
-            throw new RuntimeException("连接错误. $key", ex)
+            sc.close()
+            throw new Exception("连接错误. $key", ex)
         }
         def se = new AioSession(sc, exec)
         msgFns?.each {se.msgFn(it)}

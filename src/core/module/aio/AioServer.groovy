@@ -1,6 +1,7 @@
 package core.module.aio
 
 import cn.xnatural.enet.event.EL
+import core.module.SchedSrv
 import core.module.ServerTpl
 
 import java.nio.channels.AsynchronousChannelGroup
@@ -8,7 +9,9 @@ import java.nio.channels.AsynchronousServerSocketChannel
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.channels.CompletionHandler
 import java.text.SimpleDateFormat
+import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.LongAdder
 import java.util.function.BiConsumer
 
@@ -21,6 +24,7 @@ class AioServer extends ServerTpl {
     protected AsynchronousServerSocketChannel                        ssc
     @Lazy String hp = getStr('hp', ":7001")
     @Lazy Integer port = hp.split(":")[1] as Integer
+    @Lazy def sched = bean(SchedSrv)
 
 
     @EL(name = 'sys.starting', async = true)
@@ -100,7 +104,7 @@ class AioServer extends ServerTpl {
             cal.add(Calendar.HOUR_OF_DAY, -1)
             String lastHour = sdf.format(cal.getTime())
             LongAdder c = hourCount.remove(lastHour)
-            if (c != null) log.info("{} 时共处理 tcp 数据包: {} 个", lastHour, c)
+            if (c != null) log.info("{} 时共处理 TCP(AIO) 数据包: {} 个", lastHour, c)
         }
     }
 
@@ -116,13 +120,37 @@ class AioServer extends ServerTpl {
                 sc.setOption(StandardSocketOptions.SO_RCVBUF, 64 * 1024)
                 sc.setOption(StandardSocketOptions.SO_SNDBUF, 64 * 1024)
                 sc.setOption(StandardSocketOptions.SO_KEEPALIVE, true)
+
                 def se = new AioSession(sc, srv.exec)
                 msgFns?.each {se.msgFn(it)}
                 se.start()
+
+                // AioSession过期 则关闭会话
+                handleExpire(se)
             }
-            // 继续接入
+            // 继续接入新连接
             srv.accept()
         }
+
+
+        protected void handleExpire(AioSession se) {
+            long expire = Duration.ofMinutes(getInteger("session.maxIdle", 30)).toMillis()
+            final AtomicBoolean end = new AtomicBoolean(false)
+            long cur = System.currentTimeMillis()
+            sched?.dyn({
+                if (System.currentTimeMillis() - (se.lastReadTime?:cur) > expire && end.compareAndSet(false, true)) {
+                    log.info("Closing expired AioSession: " + se)
+                    se.close()
+                }
+            }, {
+                if (end.get()) return null
+                long left = expire - (System.currentTimeMillis() - (se.lastReadTime?:cur))
+                if (left < 1000L) return new Date(System.currentTimeMillis() + (1000L * 30)) // 执行函数之前会计算下次执行的时间
+                def d = new Date(System.currentTimeMillis() + (left?:0) + 10L)
+                d
+            })
+        }
+
 
         @Override
         void failed(Throwable ex, AioServer srv) {
