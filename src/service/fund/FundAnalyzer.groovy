@@ -38,6 +38,20 @@ class FundAnalyzer extends ServerTpl {
         lastMonthAvg(code)
         spread(code)
         continuousDownOrUp(code)
+        notify(code)
+    }
+
+
+    // 是否到了通知价
+    void notify(String code) {
+        def fund = repo.findById(Fund, code)
+        if (fund.notifyUnitPrice == null) return
+        if (fund.newestUnitPrice <= fund.notifyUnitPrice) {
+            def hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            if (hour == 10 || hour == 14) {
+                fundSrv.ddMsg("$code 到了通知价: $fund.notifyUnitPrice")
+            }
+        }
     }
 
 
@@ -148,8 +162,10 @@ class FundAnalyzer extends ServerTpl {
             }
         }
 
-        if (fund.continuousDownCount >= 3 && (fund.type in ['股票指数', '股票型', '混合型'] as Set) && !fund.up) {
-            if (Calendar.getInstance().get(Calendar.HOUR_OF_DAY) > 13) {
+        if (fund.continuousDownCount >= 3 && (fund.type in ['股票指数'] as Set) && !fund.up) {
+            int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            int minute = Calendar.getInstance().get(Calendar.MINUTE)
+            if ((hour == 10 && minute > 40) || (hour == 14 && minute > 35)) {
                 fundSrv.ddMsg("连续下降 $fund.continuousDownCount 次, $fund.name($fund.code)")
             }
             // TODO 连续3次 下降, 降>0.3

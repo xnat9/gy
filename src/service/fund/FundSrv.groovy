@@ -21,30 +21,40 @@ class FundSrv extends ServerTpl {
 
     @EL(name = 'sys.started', async = true)
     void start() {
+        sched.cron("0 40,50 14 ? * 1,2,3,4,5 *") {ddMsg("JJ提醒")}
         // sched.cron("0 10 01 3,13,23 * ?", {crawl.addTask{crawl.updateFunds()}})
-        sched.cron("0 40 9 * * ?", {
-            crawl.queue {  updateByType('股票指数') }
-            // crawl.addTask { updateByType('混合型') }
-        })
-        def updatePriceFn = { // 更新最新价格信息
-            crawl.queue {
-                for (int page = 1; ; page++) {
-                    def p = repo.findPage(Fund, page, 100, { root, query, cb -> {
-                        root.get('type').in('股票指数')
-                    }})
-                    p.list.each{ crawl.updateNewestPrice(it.code); analyzer.analyze(it.code); Thread.sleep(100L) }
-                    if (p.page >= p.totalPage) break
+
+        boolean workday = {
+           def cal = Calendar.getInstance()
+            int week = cal.get(Calendar.DAY_OF_WEEK)
+            week == 1 || week == 7 ? false : true
+        }()
+
+        if (workday) {
+            sched.cron("0 40 9 * * ?", {
+                crawl.queue {  updateByType('股票指数') }
+                // crawl.addTask { updateByType('混合型') }
+            })
+            def updatePriceFn = { // 更新最新价格信息
+                crawl.queue {
+                    for (int page = 1; ; page++) {
+                        def p = repo.findPage(Fund, page, 100, { root, query, cb -> {
+                            root.get('type').in('股票指数')
+                        }})
+                        p.list.each{ crawl.updateNewestPrice(it.code); analyzer.analyze(it.code); Thread.sleep(100L) }
+                        if (p.page >= p.totalPage) break
+                    }
+                    log.info("更新最新价格信息 完成")
                 }
-                log.info("更新最新价格信息 完成")
             }
-        }
-        sched.cron("0 15,28,40,50,55 10,11,12,13,14 * * ?", updatePriceFn)
-        sched.cron("0 4 15 * * ?", updatePriceFn)
-        sched.cron("0 30 13 * * ?", { crawl.queue{updateByType('货币型')} })
+            sched.cron("0 15,28,40,50,55 10,11,12,13,14 * * ?", updatePriceFn)
+            sched.cron("0 4 15 * * ?", updatePriceFn)
+            sched.cron("0 30 13 * * ?", { crawl.queue{updateByType('货币型')} })
 //        sched.cron("0 40 15 * * ?", {
 //            crawl.addTask { updateByType('混合型') }
 //            crawl.addTask { updateByType('股票型') }
 //        })
+        }
     }
 
 

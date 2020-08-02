@@ -49,4 +49,11 @@ class Fund extends BaseEntity {
     Integer downCountOf30day
     // 涨(与最新一条历史的价相比)
     Boolean up
+
+    // ===============自定义属性================
+
+    // 我的自选 观察
+    Boolean watch
+    // 通知价格
+    Double notifyUnitPrice
 }

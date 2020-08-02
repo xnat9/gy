@@ -67,7 +67,6 @@ class FundCtrl extends CtrlTpl {
                     )
                 ))
             }
-
         }
     }
 
@@ -84,9 +83,25 @@ class FundCtrl extends CtrlTpl {
     }
 
 
-    // 根据基金代码手动更新基金
     void updateFund(Chain chain) {
         chain.post('updateFund') {ctx ->
+            form(ctx) {fd, fn ->
+                String code = fd['code']
+                Double notifyUnitPrice = fd['notifyUnitPrice'].isEmpty() ? null : Double.valueOf(fd['notifyUnitPrice'])
+                Boolean watch = fd['watch'].isEmpty() ? null : Boolean.valueOf(fd['watch'])
+                def fund = repo.findById(Fund, code)
+                fund.setNotifyUnitPrice(notifyUnitPrice)
+                fund.setWatch(watch)
+                repo.saveOrUpdate(fund)
+                fn.accept(ApiResp.ok())
+            }
+        }
+    }
+
+
+    // 根据基金代码手动更新基金
+    void crawlFund(Chain chain) {
+        chain.post('crawlFund') {ctx ->
             form(ctx) {fd, fn ->
                 String code = fd['code']
                 String type = fd['type']
@@ -117,8 +132,8 @@ class FundCtrl extends CtrlTpl {
 
 
     // 基金列表
-    void fundList(Chain chain) {
-        chain.get('list') {ctx ->
+    void fundPage(Chain chain) {
+        chain.get('fundPage') {ctx ->
             get(ctx) {params, fn ->
                 Integer page = Integer.valueOf(params.getOrDefault('page', 1))
                 String code = params['code']
@@ -129,10 +144,12 @@ class FundCtrl extends CtrlTpl {
                 String asc = params['asc']
                 String descFirst = params.getOrDefault('descFirst', 'true')
                 String available = params['available']
+                String watch = params['watch']
                 fn.accept(ApiResp.ok(
                     Page<Map>.of(
                         repo.findPage(Fund, page, 15, { root, query, cb ->
                             def os = []
+
                             if (Boolean.TRUE == Boolean.valueOf(descFirst)) {
                                 if (desc) {
                                     desc.split(",").each {
@@ -163,6 +180,8 @@ class FundCtrl extends CtrlTpl {
                             def ps = []
                             if (name) {ps << cb.like(root.get('name'), '%' + name +'%')}
                             if (code) {ps << cb.like(root.get('code'), '%' + code + '%')}
+                            if (watch == 'true') ps << cb.equal(root.get('watch'), true)
+                            if (watch == 'false') ps << cb.equal(root.get('watch'), false)
                             if (type) {
                                 def ps1 = []
                                 type.split(",").each {t ->

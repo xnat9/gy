@@ -7,12 +7,10 @@ import com.alibaba.fastjson.JSONException
 import com.alibaba.fastjson.JSONObject
 import core.Utils
 import core.module.OkHttpSrv
-import core.module.SchedSrv
 import core.module.ServerTpl
 import core.module.jpa.BaseRepo
 import dao.entity.fund.Fund
 import dao.entity.fund.FundHistory
-import org.apache.commons.lang3.time.DateUtils
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 
@@ -88,7 +86,7 @@ class FundCrawl extends ServerTpl {
                 updateNewestPrice(code)
                 analyzer.analyze(code)
             }
-            else async{analyzer.analyze(code)}
+            else async {analyzer.analyze(code)}
         } catch (Throwable ex) {
             String msg = "Update Fund ' " + code + "' error. " + (ex.message?:ex.cause?.message?:'')
             ep.fire('wsMsg', msg)
@@ -255,13 +253,15 @@ class FundCrawl extends ServerTpl {
             fund.available = available
             fund.lowestPurchase = lowestPurchase
             if (fund.start == null) fund.start = start
-            repo.saveOrUpdate(fund)
-            log.info("更新Fund: {}", Utils.toMapper(fund)
-                .addConverter('start', {v -> new SimpleDateFormat('yyyy-MM-dd').format(v)})
-                .addConverter('createTime', {v -> new SimpleDateFormat('yyyy-MM-dd HH:mm:ss').format(v)})
-                .addConverter('updateTime', {v -> new SimpleDateFormat('yyyy-MM-dd HH:mm:ss').format(v)})
-                .sort()
-                .build())
+            if (available) {
+                repo.saveOrUpdate(fund)
+                log.info("更新Fund: {}", Utils.toMapper(fund)
+                    .addConverter('start', {v -> new SimpleDateFormat('yyyy-MM-dd').format(v)})
+                    .addConverter('createTime', {v -> new SimpleDateFormat('yyyy-MM-dd HH:mm:ss').format(v)})
+                    .addConverter('updateTime', {v -> new SimpleDateFormat('yyyy-MM-dd HH:mm:ss').format(v)})
+                    .sort()
+                    .build())
+            }
         }
     }
 
@@ -294,20 +294,9 @@ class FundCrawl extends ServerTpl {
 
     // 参考文章: https://blog.csdn.net/weizhixiang/article/details/51445054
     protected int updateFundHistory2(String code) {
-
         def fund = repo.findById(Fund, code)
         if (fund == null) throw new Exception("Fund '$code' not exist")
-        int startPage = 1
         def latest = repo.find(FundHistory, { root, query, cb -> query.orderBy(cb.desc(root.get('date'))).where(cb.equal(root.get('code'), code))})
-        if (latest) {
-            def sdf = new SimpleDateFormat("yyyy-MM-dd")
-            def today = sdf.parse(sdf.format(new Date()))
-            long t = latest.date
-            while (today > t) {
-                t = DateUtils.addDays(t, 1)
-                startPage++
-            }
-        }
 
         int count = 0
         def fn = {String s ->
@@ -340,6 +329,8 @@ class FundCrawl extends ServerTpl {
                 if (e == null) {
                     e = repo.saveOrUpdate(new FundHistory(code: code, unitPrice: unitPrice, date: date))
                     count++
+                } else {
+                    if (latest && latest.date >= e.date) return false
                 }
             }
             if (jo.getInteger('curpage') >= jo.getInteger('pages')) { // 是否是最后一页
@@ -349,10 +340,11 @@ class FundCrawl extends ServerTpl {
         }
 
         boolean flag = true
-        int page = startPage
+        int page = 1
+        int pageSize = latest == null ? 40 : 7
         while (flag) {
             flag = fn.call(
-                http.get("http://fund.eastmoney.com/f10/F10DataApi.aspx?type=lsjz&code=$code&page=${page++}&per=20").debug().execute()
+                http.get("http://fund.eastmoney.com/f10/F10DataApi.aspx?type=lsjz&code=$code&page=${page++}&per=$pageSize").debug().execute()
             )
         }
         count

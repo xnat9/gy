@@ -35,6 +35,34 @@
         </i-form>
     </div>
 
+    <!-- 通知列表 -->
+<!--    <div id="div_notify">-->
+<!--        <table id="tb_notify" border="1">-->
+<!--            <thead>-->
+<!--            <tr>-->
+<!--                <th>代码</th>-->
+<!--                <th>名字</th>-->
+<!--                &lt;!&ndash;                <th>可用</th>&ndash;&gt;-->
+<!--                <th>类型</th>-->
+<!--                <th>成立日</th>-->
+<!--                <th>规模(亿元)</th>-->
+<!--                <th>最新价</th>-->
+<!--                <th>最高价</th>-->
+<!--                <th>最低价</th>-->
+<!--                &lt;!&ndash;                <th>接近最历史低</th>&ndash;&gt;-->
+<!--                <th>最近一月平均价</th>-->
+<!--                <th>起购价(元)</th>-->
+<!--                <th>差价(最新-最低)</th>-->
+<!--                <th>差价(最高-最新)</th>-->
+<!--                <th>连续升降次数</th>-->
+<!--                <th>最近10天下降次数</th>-->
+<!--                <th>最近30天下降次数</th>-->
+<!--                <th>操作</th>-->
+<!--            </tr>-->
+<!--            </thead>-->
+<!--        </table>-->
+<!--    </div>-->
+
     <!-- 基金列表 -->
     <div id="div_fund" style="margin-top: 20px" >
         <div>
@@ -48,7 +76,14 @@
                 <form-item>
                     <i-select v-model="select_available" placeholder="是否可用">
                         <i-option value="">所有</i-option>
-                        <i-option value="true">是</i-option>
+                        <i-option value="true">可用</i-option>
+                        <i-option value="false">否</i-option>
+                    </i-select>
+                </form-item>
+                <form-item>
+                    <i-select v-model="select_watch" placeholder="自选">
+                        <i-option value="">所有</i-option>
+                        <i-option value="true">自选</i-option>
                         <i-option value="false">否</i-option>
                     </i-select>
                 </form-item>
@@ -116,14 +151,16 @@
                 <th>最新价</th>
                 <th>最高价</th>
                 <th>最低价</th>
+                <th>通知价</th>
 <!--                <th>接近最历史低</th>-->
                 <th>最近一月平均价</th>
                 <th>起购价(元)</th>
                 <th>差价(最新-最低)</th>
                 <th>差价(最高-最新)</th>
-                <th>连续升降次数</th>
-                <th>最近10天下降次数</th>
-                <th>最近30天下降次数</th>
+                <th>连续升降(天)</th>
+                <th>最近10天下降(天)</th>
+                <th>最近30天下降(天)</th>
+                <th>自选</th>
                 <th>操作</th>
             </tr>
             </thead>
@@ -146,6 +183,9 @@
                     </td>
                     <td>{{item.maxUnitPrice}}</td>
                     <td>{{item.minUnitPrice}}</td>
+                    <td>
+                        <input type="number" :value="item.notifyUnitPrice" style="width: 60px" @blur='notifyUnitPriceBlur($event, item)'>
+                    </td>
 <!--                    <td>{{item.historyLowest == true ? '是' : '否'}}</td>-->
                     <td>{{item.lastMonthAvg}}</td>
                     <td>{{item.lowestPurchase}}</td>
@@ -159,6 +199,9 @@
 <!--                    <td>{{item.continuousUpCount}}</td>-->
                     <td>{{item.downCountOfTen}}</td>
                     <td>{{item.downCountOf30day}}</td>
+                    <td>
+                        <input type="checkbox" :checked="item.watch" @change="fundWatch($event, item)">
+                    </td>
                     <td>
                         <a href="javascript:void(0)" style="text-decoration:none;" @click="showHistory(item.code), renderHistoryEChart(item.code)">历史</a>
                         <a href="javascript:void(0)" style="text-decoration:none;" @click="updateFund(item.code)">更新</a>
@@ -224,7 +267,7 @@
         data: {
             fireMethod: '',
             addCode: '', select_update_type: '', cusScript: '',
-            funds: {}, query_code: '', query_name: '', types: [], select_available: 'true', select_type: '股票指数', select_desc: '', select_asc: '', select_historyLowest: '', descFirst: 'true',
+            funds: {}, query_code: '', query_name: '', types: [], select_watch: '', select_available: 'true', select_type: '股票指数', select_desc: ["spread_max_newest"], select_asc: ["spread_newest_min"], select_historyLowest: '', descFirst: 'false',
             histories: {},
             historyChart: null, showHistoryCode: '', startTime: new Date(new Date().getTime() - (1000 * 60 * 60 * 24 * 30)), endTime: null,
         },
@@ -234,6 +277,7 @@
         },
         watch: {
             select_available: function(v) {this.getFunds(1)},
+            select_watch: function (v) {this.getFunds(1)},
             select_type: function (v) {this.getFunds(1)},
             select_desc: function (v) {this.getFunds(1)},
             select_asc: function (v) {this.getFunds(1)},
@@ -255,6 +299,46 @@
             }
         },
         methods: {
+            fundWatch: function(e, item) {
+                let v = $(e.target).is(':checked');
+                let nv = v == null || v == '' ? null : Boolean(v);
+                let ov = item.watch;
+                if (nv != ov) {
+                    item.watch = nv;
+                    $.ajax({
+                        url: 'updateFund',
+                        type: 'post',
+                        data: item,
+                        success: function (res) {
+                            if ('00' == res.code) {
+                                app.$Message.success({content: (nv ? '添加' : '删除') + "自选" + item.code + "成功", duration: 3});
+                            } else {
+                                app.$Notice.error({title: '错误提示', desc: res.desc, duration: 7})
+                            }
+                        }
+                    })
+                }
+            },
+            notifyUnitPriceBlur: function(e, item) {
+                let v = $(e.target).val()
+                let nv = v == null || v == '' ? null : Number(v);
+                let ov = item.notifyUnitPrice;
+                if (nv != ov) {
+                    item.notifyUnitPrice = nv;
+                    $.ajax({
+                        url: 'updateFund',
+                        type: 'post',
+                        data: item,
+                        success: function (res) {
+                            if ('00' == res.code) {
+                                app.$Message.success({content: "更新" + item.code + "通知价格(" + ov +"->" + nv +")成功", duration: 5})
+                            } else {
+                                app.$Notice.error({title: '错误提示', desc: res.desc, duration: 7})
+                            }
+                        }
+                    })
+                }
+            },
             execScript: function() {
                 let _this = this;
                 $.ajax({
@@ -279,12 +363,12 @@
             getFunds: function (page) {
                 let _this = this;
                 $.ajax({
-                    url: 'list?page=' + (page || 1) + '&' + (_this.select_type != '所有类型' ? 'type='+_this.select_type+'&' : '') +
+                    url: 'fundPage?page=' + (page || 1) + '&' + (_this.select_type != '所有类型' ? 'type='+_this.select_type+'&' : '') +
                         (_this.query_code ? 'code='+_this.query_code+'&' : '') + (_this.query_name ? 'name='+_this.query_name+'&' : '') +
                         (_this.select_desc ? 'desc='+_this.select_desc+'&' : '') + (_this.select_asc ? 'asc='+_this.select_asc+'&' : '') +
                         (_this.select_historyLowest ? 'historyLowest='+_this.select_historyLowest+'&' : ''),
                     data: {
-                        descFirst: _this.descFirst, available: _this.select_available
+                        descFirst: _this.descFirst, available: _this.select_available, watch: _this.select_watch
                     },
                     success: function (res) {
                         if ('00' == res['code']) {
@@ -319,7 +403,7 @@
             updateFund: function(code, type) {
                 let _this = this;
                 $.ajax({
-                    url: 'updateFund',
+                    url: 'crawlFund',
                     type: 'post',
                     data: {code: code, type: type},
                     success: function (res) {

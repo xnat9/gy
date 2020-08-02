@@ -2,9 +2,9 @@ import cn.xnatural.enet.event.EL
 import core.AppContext
 import core.module.EhcacheSrv
 import core.module.OkHttpSrv
+import core.module.Remoter
 import core.module.SchedSrv
 import core.module.jpa.HibernateSrv
-import core.module.remote.Remoter
 import ctrl.FundCtrl
 import ctrl.MainCtrl
 import ctrl.ratpack.RatpackWeb
@@ -17,7 +17,6 @@ import service.TestService
 import service.fund.FundAnalyzer
 import service.fund.FundCrawl
 import service.fund.FundSrv
-
 
 @Field final Logger log = LoggerFactory.getLogger(getClass())
 @Field final AppContext app = new AppContext()
