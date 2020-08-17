@@ -192,8 +192,8 @@
                     <td>{{item.spread_newest_min}}</td>
                     <td>{{item.spread_max_newest}}</td>
                     <td>
-                        <span v-if="item.continuousUpCount > 0" style="color: red">{{item.continuousUpCount}}</span>
-                        <span v-else-if="item.continuousDownCount > 0" style="color: green">{{item.continuousDownCount}}</span>
+                        <span v-if="item.continuousUpCount > 0" style="color: red">{{item.continuousUpCount}}({{item.continuousUpAmount}})</span>
+                        <span v-else-if="item.continuousDownCount > 0" style="color: green">{{item.continuousDownCount}}({{item.continuousDownAmount}})</span>
                         <span v-else></span>
                     </td>
 <!--                    <td>{{item.continuousUpCount}}</td>-->

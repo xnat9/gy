@@ -128,7 +128,7 @@ class FundAnalyzer extends ServerTpl {
     // 连续 上升 or 下降
     void continuousDownOrUp(String code) {
         def fund = repo.findById(Fund, code)
-        def p = repo.findPage(FundHistory, 1, 10, { root, query, cb ->
+        def p = repo.findPage(FundHistory, 1, 15, { root, query, cb ->
             query.orderBy(cb.desc(root.get('date')))
             cb.equal(root.get('code'), code)
         })
@@ -144,25 +144,33 @@ class FundAnalyzer extends ServerTpl {
                 if (i == 0) {
                     if (v1 > v2) {
                         fund.continuousUpCount = 1
+                        fund.continuousUpAmount = v1 - v2
                         up = true
                     } else if (v1 < v2) {
                         fund.continuousDownCount = 1
+                        fund.continuousDownAmount = v2 - v1
                         up = false
                     } else break
                     continue label
                 }
 
                 if (up) {
-                    if (v1 > v2) fund.continuousUpCount += 1
+                    if (v1 > v2) {
+                        fund.continuousUpCount += 1
+                        fund.continuousUpAmount += v1 - v2
+                    }
                     else break label
                 } else {
-                    if (v1 < v2) {fund.continuousDownCount += 1}
+                    if (v1 < v2) {
+                        fund.continuousDownCount += 1
+                        fund.continuousDownAmount += v2 - v1
+                    }
                     else break label
                 }
             }
         }
 
-        if (fund.continuousDownCount >= 3 && (fund.type in ['股票指数'] as Set) && !fund.up) {
+        if (fund.continuousDownCount >= 3 && fund.continuousDownAmount > 0.05d && (fund.type in ['股票指数'] as Set) && !fund.up) {
             int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
             int minute = Calendar.getInstance().get(Calendar.MINUTE)
             if ((hour == 10 && minute > 40) || (hour == 14 && minute > 35)) {

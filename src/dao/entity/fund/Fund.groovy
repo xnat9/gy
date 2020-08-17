@@ -43,6 +43,10 @@ class Fund extends BaseEntity {
     Integer continuousDownCount
     // 连续升的次数
     Integer continuousUpCount
+    // 连续降的价格
+    Double continuousDownAmount
+    // 连续升的次数
+    Double continuousUpAmount
     // 最近10天 下降的 次数
     Integer downCountOfTen
     // 最近30天 下降的 次数
