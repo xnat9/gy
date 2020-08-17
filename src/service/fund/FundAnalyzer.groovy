@@ -46,10 +46,20 @@ class FundAnalyzer extends ServerTpl {
     void notify(String code) {
         def fund = repo.findById(Fund, code)
         if (fund.notifyUnitPrice == null) return
-        if (fund.newestUnitPrice <= fund.notifyUnitPrice) {
+        def latest = repo.find(FundHistory, { root, query, cb ->
+            query.orderBy(cb.desc(root.get('date')))
+            cb.equal(root.get('code'), code)
+        })
+        if (latest == null) return
+        if (latest.unitPrice > fund.notifyUnitPrice && fund.newestUnitPrice <= fund.notifyUnitPrice) {
             def hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
             if (hour == 10 || hour == 14) {
-                fundSrv.ddMsg("$code 到了通知价: $fund.notifyUnitPrice")
+                fundSrv.ddMsg("$code 到了(down)通知价: $fund.notifyUnitPrice")
+            }
+        } else if (latest.unitPrice < fund.notifyUnitPrice && fund.newestUnitPrice >= fund.notifyUnitPrice) {
+            def hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            if (hour == 10 || hour == 14) {
+                fundSrv.ddMsg("$code 到了(up)通知价: $fund.notifyUnitPrice")
             }
         }
     }
