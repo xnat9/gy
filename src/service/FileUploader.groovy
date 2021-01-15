@@ -91,10 +91,8 @@ class FileUploader extends ServerTpl {
                 if (remoteUrl) http?.post(remoteUrl).fileStream('file', fd.finalName, fd.inputStream).execute()
             } else {
                 // 创建本地文件并写入
-                def dir = new File(localDir)
-                dir.mkdirs()
-                fd.transferTo(dir)
-                log.info('Saved file: {}, originName: {}, size: ' + fd.size, dir.canonicalPath + File.separator + fd.finalName, fd.originName)
+                def target = fd.transferTo(new File(localDir))
+                log.info('Saved file: {}, originName: {}, size: ' + fd.size, target.canonicalPath, fd.originName)
             }
             fd
         }
