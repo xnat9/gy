@@ -1,5 +1,5 @@
-FROM docker.io/gradle:6.5
-ENV TZ Asia/Shanghai
+FROM docker.io/gradle:6.7
+ENV TZ Asia/Chongqing
 
 RUN mkdir -p /srv/gy
 
