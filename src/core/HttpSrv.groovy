@@ -6,15 +6,16 @@ import cn.xnatural.http.HttpContext
 import cn.xnatural.http.HttpServer
 
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * web 服务
  */
 class HttpSrv extends ServerTpl {
-    @Lazy protected def ehcache = bean(EhcacheSrv)
-    @Lazy protected String sessionCookieName = getStr("sessionCookieName", "sId")
-    protected final List<Class> ctrlClzs = new LinkedList<>()
-    @Lazy protected HttpServer server = new HttpServer(attrs(), exec()) {
+    @Lazy protected def         cacheSrv          = bean(CacheSrv)
+    @Lazy protected String      sessionCookieName = getStr("sessionCookieName", "sId")
+    protected final List<Class> ctrlClzs          = new LinkedList<>()
+    @Lazy protected HttpServer  server            = new HttpServer(attrs(), exec()) {
         @Override
         protected Map<String, Object> sessionDelegate(HttpContext hCtx) { getSessionDelegate(hCtx) }
     }
@@ -52,7 +53,7 @@ class HttpSrv extends ServerTpl {
         Map<String, Object> sData
         String sId = hCtx.request.getCookie(sessionCookieName)
         def expire = Duration.ofMinutes(getInteger('session.expire', 30))
-        if ('redis' == getStr('session.type')) { // session的数据, 用redis 保存 session 数据
+        if ('redis' == getStr('session.type', null)) { // session的数据, 用redis 保存 session 数据
             def redis = bean(RedisClient)
             String cKey
             if (!sId || ((cKey = 'session:' + sId) && !redis.exists(cKey))) {
@@ -90,43 +91,21 @@ class HttpSrv extends ServerTpl {
             }
         } else { // 默认用ehcache 做session 数据管理
             String cKey
-            if (!sId || ((cKey = 'session_' + sId) && ehcache.getCache(cKey) == null)) {
+            if (!sId || ((cKey = 'session_' + sId) && (sData = cacheSrv.get(cKey)) == null)) {
                 sId = UUID.randomUUID().toString().replace('-', '')
                 cKey = 'session_' + sId
                 log.info("New session '{}'", sId)
             }
 
-            def cache = ehcache.getOrCreateCache(cKey, expire, getInteger('session.maxLimit', 100000), null)
-            sData = new Map<String, Object>() {
-                @Override
-                int size() { cache.size() }
-                @Override
-                boolean isEmpty() { size() == 0 }
-                @Override
-                boolean containsKey(Object key) { cache.containsKey(key) }
-                @Override
-                boolean containsValue(Object value) { cache.find {it.value == value} }
-                @Override
-                Object get(Object key) { cache.get(key) }
-                @Override
-                Object put(String key, Object value) { cache.put(key, value) }
-                @Override
-                Object remove(Object key) { cache.remove(key) }
-                @Override
-                void putAll(Map<? extends String, ?> m) { cache.putAll(m) }
-                @Override
-                void clear() { cache.clear() }
-                @Override
-                Set<String> keySet() { cache.iterator().collect {it.key}.toSet() }
-                @Override
-                Collection<Object> values() { cache.iterator().collect {it.value} }
-                @Override
-                Set<Map.Entry<String, Object>> entrySet() { cache.iterator().collect {it}.toSet() }
+            if (sData == null) {
+                sData = new ConcurrentHashMap<>()
+                cacheSrv.set(cKey, sData, expire)
+            } else {
+                cacheSrv.expire(cKey, expire)
             }
         }
-        // sData.put('accessTime', System.currentTimeMillis())
         sData.put("id", sId)
-        hCtx.response.cookie(sessionCookieName, sId, expire.seconds as Integer, null, "/", null, null)
+        hCtx.response.cookie(sessionCookieName, sId, expire.seconds as Integer, null, "/", false, false)
         return sData
     }
 
