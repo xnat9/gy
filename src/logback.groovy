@@ -27,6 +27,7 @@ if (appenders instanceof String) {
 if (appenders.contains('console')) { // 标准输出
     appender('console', ConsoleAppender) {
         encoder(PatternLayoutEncoder) {
+            // 控制台日志格式配置
             delegate.pattern = "%d{yyyy-MM-dd HH:mm:ss.SSS} [%-7thread] [%-5level] [%-40.40C :%-3L] => %m%n"
             delegate.charset = Charset.forName("utf8")
         }
@@ -37,6 +38,7 @@ if (logPath) { // 有日志输出目录配置
     if (appenders.contains('file')) { // 日志文件
         appender('file', RollingFileAppender) {
             encoder(PatternLayoutEncoder) {
+                // 文件日志格式配置
                 delegate.pattern = "%d{yyyy-MM-dd HH:mm:ss.SSS} [%-7thread] [%-5level] [%-40.40C :%-3L] => %m%n"
                 delegate.charset = StandardCharsets.UTF_8
             }

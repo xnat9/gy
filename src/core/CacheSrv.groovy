@@ -17,7 +17,7 @@ class CacheSrv extends ServerTpl {
         @Override
         Object remove(Object key) {
             def v = super.remove(key)
-            CacheSrv.this.log.info("Removed cache: {}", key)
+            CacheSrv.this.log.debug("Removed cache: {}", key)
             return v
         }
     }

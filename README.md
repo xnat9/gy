@@ -1,6 +1,6 @@
 ### 介绍
 groovy 快速开发代码, 由groovy实现的迷你类SpringBoot模板项目. 基于[APP](https://gitee.com/xnat/app)
-##### 框架应用例: [Groovy DSL 规则引擎](https://gitee.com/xnat/gy/tree/rule)
+##### 框架应用例: [Groovy DSL 规则引擎](https://gitee.com/xnat/rule)
 1. 小功能代码模板
 2. web微服务
 
